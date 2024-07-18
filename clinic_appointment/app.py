@@ -10,7 +10,7 @@ import threading
 
 app = Flask(__name__)
 app.config.from_object('config.Config')
-db = SQLAlchemy(app)
+db = SQLAlchemy()
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
