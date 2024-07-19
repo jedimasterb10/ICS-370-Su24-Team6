@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar View</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="calendar-container">
+            <!-- Calendar Header -->
+            <header class="calendar-header">
+                <button id="prev-month">Previous</button>
+                <h1 id="month-year">July 2024</h1>
+                <button id="next-month">Next</button>
+            </header>
+            
+            <!-- Calendar Body -->
+            <div class="calendar-body">
+                <div class="calendar-grid">
+                    <!-- Days of the Week -->
+                    <div class="day-name">Sun</div>
+                    <div class="day-name">Mon</div>
+                    <div class="day-name">Tue</div>
+                    <div class="day-name">Wed</div>
+                    <div class="day-name">Thu</div>
+                    <div class="day-name">Fri</div>
+                    <div class="day-name">Sat</div>
+                    
+                    <!-- Days of the Month (Example) -->
+                    <div class="calendar-day" data-date="2024-07-01">
+                        <span class="day-number">1</span>
+                        <span class="appointment-count">2</span>
+                    </div>
+                    <div class="calendar-day" data-date="2024-07-02">
+                        <span class="day-number">2</span>
+                        <span class="appointment-count">1</span>
+                    </div>
+                    <!-- More days here... -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Appointment Details Popup -->
+        <div id="appointment-popup" class="popup">
+            <div class="popup-content">
+                <span class="close-popup">&times;</span>
+                <h2>Appointments for <span id="popup-date"></span></h2>
+                <ul id="appointment-list">
+                    <!-- Example appointments -->
+                    <li>
+                        <p><strong>Dr. Smith</strong> - 10:00 AM with John Doe</p>
+                        <button class="action-button">Reschedule</button>
+                        <button class="action-button">Cancel</button>
+                    </li>
+                    <!-- More appointments here... -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/scripts.js"></script>
+</body>
+</html>
