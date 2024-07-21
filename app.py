@@ -8,12 +8,18 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import threading
 
+# Initialize Flask app
 app = Flask(__name__)
 app.config.from_object('config.Config')
+
+# Initialize database
 db = SQLAlchemy(app)
+
+# Initialize Flask-Login
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+# Import models
 from models import User, Appointment
 
 @login_manager.user_loader
@@ -38,32 +44,34 @@ def schedule_email(to_email, subject, body, send_time):
     threading.Timer(delay, send_email, args=[to_email, subject, body]).start()
 
 # Routes
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        data = request.form
-        user = User(
-            name=data['name'],
-            email=data['email'],
-            notification_preferences=data.get('notification_preferences', '{"email": true, "sms": false}')
-        )
-        user.set_password(data['password'])
-        db.session.add(user)
-        db.session.commit()
-        return redirect(url_for('login'))
-    return render_template('register.html')
+@app.route('/')
+def home():
+    return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        data = request.form
-        user = User.query.filter_by(email=data['email']).first()
-        if user and user.check_password(data['password']):
+        email = request.form['email']
+        password = request.form['password']
+        user = User.query.filter_by(email=email).first()
+        if user and user.check_password(password):
             login_user(user)
             return redirect(url_for('dashboard'))
-        else:
-            return jsonify({'message': 'Invalid email or password'}), 401
+        return 'Invalid email or password'
     return render_template('login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        name = request.form['name']
+        email = request.form['email']
+        password = request.form['password']
+        hashed_password = generate_password_hash(password)
+        new_user = User(name=name, email=email, password_hash=hashed_password)
+        db.session.add(new_user)
+        db.session.commit()
+        return redirect(url_for('login'))
+    return render_template('register.html')
 
 @app.route('/logout')
 @login_required
@@ -76,86 +84,63 @@ def logout():
 def dashboard():
     return render_template('dashboard.html', name=current_user.name)
 
-@app.route('/book_appointment', methods=['GET', 'POST'])
+@app.route('/book', methods=['GET', 'POST'])
 @login_required
 def book_appointment():
     if request.method == 'POST':
-        data = request.form
-        appointment = Appointment(
-            patient_id=current_user.id,
-            doctor_id=data['doctor_id'],
-            datetime=datetime.strptime(data['datetime'], '%Y-%m-%d %H:%M:%S')
-        )
-        db.session.add(appointment)
+        doctor_id = request.form['doctor_id']
+        datetime_str = request.form['datetime']
+        appointment_datetime = datetime.fromisoformat(datetime_str)
+        new_appointment = Appointment(patient_id=current_user.id, doctor_id=doctor_id, datetime=appointment_datetime)
+        db.session.add(new_appointment)
         db.session.commit()
 
-        if eval(current_user.notification_preferences).get('email'):
-            subject = 'Appointment Confirmation'
-            body = f"Dear {current_user.name},\n\nYour appointment is confirmed for {appointment.datetime}."
-            send_email(current_user.email, subject, body)
-            
-            # Schedule reminder emails
-            reminder_times = [appointment.datetime - timedelta(days=1), appointment.datetime - timedelta(hours=1)]
-            for reminder_time in reminder_times:
-                if reminder_time > datetime.now():
-                    schedule_email(current_user.email, 'Appointment Reminder', body, reminder_time)
+        # Send confirmation email
+        subject = 'Appointment Confirmed'
+        body = f'Your appointment with Doctor {doctor_id} is scheduled for {appointment_datetime}.'
+        schedule_email(current_user.email, subject, body, appointment_datetime - timedelta(hours=1))
 
         return redirect(url_for('dashboard'))
     return render_template('book_appointment.html')
 
-@app.route('/reschedule_appointment', methods=['GET', 'POST'])
+@app.route('/reschedule', methods=['GET', 'POST'])
 @login_required
 def reschedule_appointment():
     if request.method == 'POST':
-        data = request.form
-        appointment_id = data['appointment_id']
-        new_datetime = datetime.strptime(data['new_datetime'], '%Y-%m-%d %H:%M:%S')
+        appointment_id = request.form['appointment_id']
+        new_datetime_str = request.form['new_datetime']
+        new_datetime = datetime.fromisoformat(new_datetime_str)
 
         appointment = Appointment.query.get(appointment_id)
-        if appointment.patient_id != current_user.id:
-            return jsonify({'message': 'Unauthorized'}), 403
+        if appointment and appointment.patient_id == current_user.id:
+            appointment.datetime = new_datetime
+            db.session.commit()
 
-        appointment.datetime = new_datetime
-        appointment.status = 'rescheduled'
-        db.session.commit()
-
-        if eval(current_user.notification_preferences).get('email'):
+            # Send updated confirmation email
             subject = 'Appointment Rescheduled'
-            body = f"Dear {current_user.name},\n\nYour appointment has been rescheduled to {new_datetime}."
-            send_email(current_user.email, subject, body)
-            
-            # Reschedule reminder emails
-            reminder_times = [new_datetime - timedelta(days=1), new_datetime - timedelta(hours=1)]
-            for reminder_time in reminder_times:
-                if reminder_time > datetime.now():
-                    schedule_email(current_user.email, 'Appointment Reminder', body, reminder_time)
+            body = f'Your appointment with Doctor {appointment.doctor_id} has been rescheduled to {new_datetime}.'
+            schedule_email(current_user.email, subject, body, new_datetime - timedelta(hours=1))
 
         return redirect(url_for('dashboard'))
     return render_template('reschedule_appointment.html')
 
-@app.route('/cancel_appointment', methods=['GET', 'POST'])
+@app.route('/cancel', methods=['GET', 'POST'])
 @login_required
 def cancel_appointment():
     if request.method == 'POST':
-        data = request.form
-        appointment_id = data['appointment_id']
-
+        appointment_id = request.form['appointment_id']
         appointment = Appointment.query.get(appointment_id)
-        if appointment.patient_id != current_user.id:
-            return jsonify({'message': 'Unauthorized'}), 403
+        if appointment and appointment.patient_id == current_user.id:
+            db.session.delete(appointment)
+            db.session.commit()
 
-        appointment.status = 'canceled'
-        db.session.commit()
-
-        if eval(current_user.notification_preferences).get('email'):
+            # Send cancellation email
             subject = 'Appointment Canceled'
-            body = f"Dear {current_user.name},\n\nYour appointment on {appointment.datetime} has been canceled."
+            body = f'Your appointment with Doctor {appointment.doctor_id} has been canceled.'
             send_email(current_user.email, subject, body)
 
         return redirect(url_for('dashboard'))
     return render_template('cancel_appointment.html')
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(debug=True)
