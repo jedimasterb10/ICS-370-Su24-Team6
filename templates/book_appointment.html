@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Book Appointment</title>
+</head>
+<body>
+    <h1>Book Appointment</h1>
+    <form action="{{ url_for('book_appointment') }}" method="post">
+        <label for="doctor_id">Doctor ID:</label>
+        <input type="number" name="doctor_id" id="doctor_id" required><br>
+        <label for="datetime">Date and Time:</label>
+        <input type="datetime-local" name="datetime" id="datetime" required><br>
+        <button type="submit">Book Appointment</button>
+    </form>
+    <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+</body>
+</html>

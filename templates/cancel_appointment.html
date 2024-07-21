@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cancel Appointment</title>
+</head>
+<body>
+    <h1>Cancel Appointment</h1>
+    <form action="{{ url_for('cancel_appointment') }}" method="post">
+        <label for="appointment_id">Appointment ID:</label>
+        <input type="number" name="appointment_id" id="appointment_id" required><br>
+        <button type="submit">Cancel Appointment</button>
+    </form>
+    <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+</body>
+</html>

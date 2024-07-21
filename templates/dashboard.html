@@ -2,67 +2,30 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Dashboard</title>
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <title>Dashboard</title>
 </head>
 <body>
-    <div class="container">
-        <div class="dashboard-container">
-            <!-- Tabs -->
-            <div class="tabs">
-                <button class="tab-button active" onclick="showTab('upcoming')">Upcoming Appointments</button>
-                <button class="tab-button" onclick="showTab('past')">Past Appointments</button>
-                <button class="tab-button" onclick="showTab('profile')">Profile Settings</button>
-            </div>
-            
-            <!-- Tab Content -->
-            <div class="tab-content" id="upcoming">
-                <h2>Upcoming Appointments</h2>
-                <ul class="appointment-list">
-                    <li>
-                        <p><strong>Dr. Smith</strong> - July 25, 2024, 10:00 AM</p>
-                        <button class="action-button">Reschedule</button>
-                        <button class="action-button">Cancel</button>
-                    </li>
-                    <!-- More appointments here -->
-                </ul>
-            </div>
-            
-            <div class="tab-content" id="past">
-                <h2>Past Appointments</h2>
-                <ul class="appointment-list">
-                    <li>
-                        <p><strong>Dr. Jones</strong> - June 15, 2024</p>
-                        <p>Notes: Follow-up required.</p>
-                        <a href="/static/reports/dr_jones_june2024.pdf" class="report-link" target="_blank">View Report</a>
-                    </li>
-                    <!-- More past appointments here -->
-                </ul>
-            </div>
-            
-            <div class="tab-content" id="profile">
-                <h2>Profile Settings</h2>
-                <form action="/update-profile" method="post">
-                    <label for="name">Name:</label>
-                    <input type="text" id="name" name="name" value="John Doe" required>
-                    
-                    <label for="email">Email:</label>
-                    <input type="email" id="email" name="email" value="john.doe@example.com" required>
-                    
-                    <label for="notifications">Notification Preferences:</label>
-                    <select id="notifications" name="notifications">
-                        <option value="email">Email</option>
-                        <option value="sms">SMS</option>
-                        <option value="both">Both</option>
-                    </select>
-                    
-                    <button type="submit">Update Profile</button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <script src="/static/js/scripts.js"></script>
+    <h1>Welcome, {{ current_user.name }}</h1>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('book_appointment') }}">Book an Appointment</a></li>
+            <li><a href="{{ url_for('reschedule_appointment') }}">Reschedule an Appointment</a></li>
+            <li><a href="{{ url_for('cancel_appointment') }}">Cancel an Appointment</a></li>
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+    </nav>
+    <section>
+        <h2>Your Appointments</h2>
+        <ul>
+            {% for appointment in current_user.appointments %}
+            <li>
+                Appointment ID: {{ appointment.id }} <br>
+                Doctor ID: {{ appointment.doctor_id }} <br>
+                Date and Time: {{ appointment.datetime }} <br>
+                Status: {{ appointment.status }} <br>
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
 </body>
 </html>
