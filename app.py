@@ -7,8 +7,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.config.from_object('config.Config')
 
-# Initialize SQLAlchemy and Flask-Login
+# Initialize SQLAlchemy
 db = SQLAlchemy(app)
+
+# Initialize Flask-Login
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
@@ -19,17 +21,13 @@ def load_user(user_id):
 
 @app.route('/')
 def home():
-    try:
-        return render_template('home.html')
-    except Exception as e:
-        app.logger.error(f"Error in home route: {e}")
-        return "An error occurred", 500
+    return render_template('home.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    from models import User  # Local import to avoid circular import issues
-
     if request.method == 'POST':
+        from models import User  # Local import to avoid circular import issues
+        
         first_name = request.form['first_name']
         last_name = request.form['last_name']
         phone = request.form['phone']
@@ -41,10 +39,13 @@ def register():
             flash('Passwords do not match', 'error')
             return redirect(url_for('register'))
 
-        if User.query.filter_by(email=email).first():
+        # Check if the email already exists
+        user = User.query.filter_by(email=email).first()
+        if user:
             flash('Email address already in use', 'error')
             return redirect(url_for('register'))
 
+        # Create new user if email does not exist
         hashed_password = generate_password_hash(password)
         new_user = User(name=f"{first_name} {last_name}", email=email, password_hash=hashed_password)
         db.session.add(new_user)
@@ -57,9 +58,9 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    from models import User  # Local import to avoid circular import issues
-
     if request.method == 'POST':
+        from models import User  # Local import to avoid circular import issues
+        
         email = request.form['email']
         password = request.form['password']
         user = User.query.filter_by(email=email).first()
@@ -112,7 +113,7 @@ def book_appointment():
 @login_required
 def reschedule_appointment(appointment_id):
     from models import Appointment  # Local import to avoid circular import issues
-
+    
     appointment = Appointment.query.get_or_404(appointment_id)
 
     if request.method == 'POST':
@@ -128,7 +129,7 @@ def reschedule_appointment(appointment_id):
 @login_required
 def cancel_appointment(appointment_id):
     from models import Appointment  # Local import to avoid circular import issues
-
+    
     appointment = Appointment.query.get_or_404(appointment_id)
     db.session.delete(appointment)
     db.session.commit()
@@ -137,4 +138,6 @@ def cancel_appointment(appointment_id):
     return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)
