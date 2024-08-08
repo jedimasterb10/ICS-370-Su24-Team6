@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>Day View</title>
+</head>
+<body>
+    <h1>Appointments for {{ selected_date.strftime('%Y-%m-%d') }}</h1>
+    <ul>
+        {% for appointment in appointments %}
+        <li>
+            {{ appointment.datetime.strftime('%H:%M') }} - Patient ID: {{ appointment.patient_id }}
+            <a href="{{ url_for('reschedule_appointment', appointment_id=appointment.id) }}">Reschedule</a>
+            <a href="{{ url_for('cancel_appointment', appointment_id=appointment.id) }}">Cancel</a>
+        </li>
+        {% endfor %}
+    </ul>
+    <a href="{{ url_for('calendar') }}">Back to Calendar</a>
+</body>
+</html>

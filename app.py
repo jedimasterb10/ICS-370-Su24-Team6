@@ -1,7 +1,8 @@
-from flask import Flask, request, redirect, url_for, render_template, flash
+from flask import Flask, request, redirect, url_for, render_template, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, date, timedelta
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -87,55 +88,41 @@ def dashboard():
     appointments = Appointment.query.filter_by(patient_id=current_user.id).all()
     return render_template('dashboard.html', appointments=appointments)
 
-@app.route('/book_appointment', methods=['GET', 'POST'])
+@app.route('/calendar')
 @login_required
-def book_appointment():
-    if request.method == 'POST':
-        from models import Appointment  # Local import to avoid circular import issues
+def calendar():
+    return render_template('calendar.html')
 
-        doctor_id = request.form['doctor_id']
-        datetime = request.form['datetime']
-
-        new_appointment = Appointment(
-            patient_id=current_user.id,
-            doctor_id=doctor_id,
-            datetime=datetime
-        )
-        db.session.add(new_appointment)
-        db.session.commit()
-
-        flash('Appointment booked successfully!', 'success')
-        return redirect(url_for('dashboard'))
-
-    return render_template('book_appointment.html')
-
-@app.route('/reschedule_appointment/<int:appointment_id>', methods=['GET', 'POST'])
+@app.route('/get_appointments/<int:year>/<int:month>')
 @login_required
-def reschedule_appointment(appointment_id):
+def get_appointments(year, month):
     from models import Appointment  # Local import to avoid circular import issues
     
-    appointment = Appointment.query.get_or_404(appointment_id)
+    start_date = date(year, month, 1)
+    end_date = (start_date + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+    appointments = Appointment.query.filter(Appointment.datetime >= start_date, Appointment.datetime <= end_date).all()
 
-    if request.method == 'POST':
-        appointment.datetime = request.form['datetime']
-        db.session.commit()
+    appointments_by_day = {}
+    for appt in appointments:
+        day = appt.datetime.day
+        if day not in appointments_by_day:
+            appointments_by_day[day] = []
+        appointments_by_day[day].append({
+            'time': appt.datetime.strftime('%H:%M'),
+            'patient': appt.patient_id,
+            'id': appt.id
+        })
+    
+    return jsonify(appointments_by_day)
 
-        flash('Appointment rescheduled successfully!', 'success')
-        return redirect(url_for('dashboard'))
-
-    return render_template('reschedule_appointment.html', appointment=appointment)
-
-@app.route('/cancel_appointment/<int:appointment_id>')
+@app.route('/day_view/<int:year>/<int:month>/<int:day>')
 @login_required
-def cancel_appointment(appointment_id):
+def day_view(year, month, day):
     from models import Appointment  # Local import to avoid circular import issues
     
-    appointment = Appointment.query.get_or_404(appointment_id)
-    db.session.delete(appointment)
-    db.session.commit()
-
-    flash('Appointment cancelled successfully!', 'success')
-    return redirect(url_for('dashboard'))
+    selected_date = datetime(year, month, day)
+    appointments = Appointment.query.filter(Appointment.datetime.date() == selected_date.date()).all()
+    return render_template('day_view.html', appointments=appointments, selected_date=selected_date)
 
 if __name__ == '__main__':
     with app.app_context():

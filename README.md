@@ -12,8 +12,6 @@ ICS-370-Su24-Team6/
 │
 ├── app.py                   # Main Flask application file
 ├── config.py                # Configuration settings for Flask and SQLAlchemy
-├── db_init.py               # Script to initialize the database
-│
 ├── models.py                # SQLAlchemy models
 │
 ├── templates/               # HTML template files
