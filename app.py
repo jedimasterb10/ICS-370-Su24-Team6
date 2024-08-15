@@ -1,25 +1,27 @@
-from flask import Flask, request, redirect, url_for, render_template, flash, jsonify
+from flask import Flask, render_template, redirect, url_for, flash, request, session
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, date, timedelta
 
-# Initialize Flask app
+# Local imports
+from config import config
+
+# Initialize Flask app and configurations
 app = Flask(__name__)
-app.config.from_object('config.Config')
+app.config.from_object(config['development'])
 
-# Initialize SQLAlchemy
+# Initialize extensions
 db = SQLAlchemy(app)
-
-# Initialize Flask-Login
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+# Flask-Login user loader
 @login_manager.user_loader
 def load_user(user_id):
     from models import User  # Local import to avoid circular import issues
     return User.query.get(int(user_id))
 
+# Routes
 @app.route('/')
 def home():
     return render_template('home.html')
@@ -35,25 +37,30 @@ def register():
         email = request.form['email']
         password = request.form['password']
         confirm_password = request.form['confirm_password']
+        role = request.form['role']
 
         if password != confirm_password:
-            flash('Passwords do not match', 'error')
+            flash('Passwords do not match!', 'danger')
             return redirect(url_for('register'))
 
-        # Check if the email already exists
-        user = User.query.filter_by(email=email).first()
-        if user:
-            flash('Email address already in use', 'error')
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            flash('Email already registered!', 'danger')
             return redirect(url_for('register'))
 
-        # Create new user if email does not exist
         hashed_password = generate_password_hash(password)
-        new_user = User(name=f"{first_name} {last_name}", email=email, password_hash=hashed_password)
+        new_user = User(
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            phone=phone,
+            password_hash=hashed_password,
+            role=role
+        )
         db.session.add(new_user)
         db.session.commit()
-
-        flash('Registration successful! Please log in.', 'success')
-        return redirect(url_for('login'))
+        flash('Registration successful! Please log in.')
+        return redirect(url_for('login', role=role))
 
     return render_template('register.html')
 
@@ -68,7 +75,10 @@ def login():
 
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
+            flash(f'Login successful! Welcome, {user.first_name}!', 'success')
             return redirect(url_for('dashboard'))
+        else:
+            flash('Login unsuccessful. Check email and password.', 'danger')
 
         flash('Invalid email or password', 'error')
         return redirect(url_for('login'))
@@ -79,50 +89,75 @@ def login():
 @login_required
 def logout():
     logout_user()
+    flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
 
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    from models import Appointment  # Local import to avoid circular import issues
-    appointments = Appointment.query.filter_by(patient_id=current_user.id).all()
+    appointments = current_user.appointments
     return render_template('dashboard.html', appointments=appointments)
 
 @app.route('/calendar')
 @login_required
-def calendar():
+def calendar_view():
+    # Calendar logic here
     return render_template('calendar.html')
 
-@app.route('/get_appointments/<int:year>/<int:month>')
+@app.route('/book', methods=['GET', 'POST'])
 @login_required
-def get_appointments(year, month):
+def book_appointment():
     from models import Appointment  # Local import to avoid circular import issues
+    if request.method == 'POST':
+        date = request.form['date']
+        time = request.form['time']
+        new_appointment = Appointment(date=date, time=time, status='Scheduled', patient_id=current_user.id)
+        db.session.add(new_appointment)
+        db.session.commit()
+        flash('Appointment booked successfully!', 'success')
+        return redirect(url_for('dashboard'))
     
-    start_date = date(year, month, 1)
-    end_date = (start_date + timedelta(days=32)).replace(day=1) - timedelta(days=1)
-    appointments = Appointment.query.filter(Appointment.datetime >= start_date, Appointment.datetime <= end_date).all()
+    return render_template('book_appointment.html')
 
-    appointments_by_day = {}
-    for appt in appointments:
-        day = appt.datetime.day
-        if day not in appointments_by_day:
-            appointments_by_day[day] = []
-        appointments_by_day[day].append({
-            'time': appt.datetime.strftime('%H:%M'),
-            'patient': appt.patient_id,
-            'id': appt.id
-        })
-    
-    return jsonify(appointments_by_day)
-
-@app.route('/day_view/<int:year>/<int:month>/<int:day>')
+@app.route('/reschedule/<int:appointment_id>', methods=['GET', 'POST'])
 @login_required
-def day_view(year, month, day):
+def reschedule_appointment(appointment_id):
     from models import Appointment  # Local import to avoid circular import issues
+    appointment = Appointment.query.get_or_404(appointment_id)
+    if request.method == 'POST':
+        appointment.date = request.form['date']
+        appointment.time = request.form['time']
+        db.session.commit()
+        flash('Appointment rescheduled successfully!', 'success')
+        return redirect(url_for('dashboard'))
     
-    selected_date = datetime(year, month, day)
-    appointments = Appointment.query.filter(Appointment.datetime.date() == selected_date.date()).all()
-    return render_template('day_view.html', appointments=appointments, selected_date=selected_date)
+    return render_template('reschedule_appointment.html', appointment=appointment)
+
+@app.route('/cancel/<int:appointment_id>', methods=['POST'])
+@login_required
+def cancel_appointment(appointment_id):
+    from models import Appointment  # Local import to avoid circular import issues
+    appointment = Appointment.query.get_or_404(appointment_id)
+    db.session.delete(appointment)
+    db.session.commit()
+    flash('Appointment canceled successfully!', 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/settings', methods=['GET', 'POST'])
+@login_required
+def update_notification_settings():
+    if request.method == 'POST':
+        notification_method = request.form['notification_method']
+        notification_intervals = request.form['notification_intervals']
+        
+        current_user.notification_method = notification_method
+        current_user.notification_intervals = notification_intervals
+        db.session.commit()
+        flash('Notification settings updated successfully!')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('settings.html', user=current_user)
+
 
 if __name__ == '__main__':
     with app.app_context():

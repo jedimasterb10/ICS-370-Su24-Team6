@@ -2,15 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
-    <h1>Welcome, {{ current_user.name }}</h1>
+    <h1>Welcome, {{ current_user.first_name }} {{ current_user.last_name }}</h1>
     <nav>
         <ul>
             <li><a href="{{ url_for('book_appointment') }}">Book an Appointment</a></li>
             <li><a href="{{ url_for('reschedule_appointment') }}">Reschedule an Appointment</a></li>
             <li><a href="{{ url_for('cancel_appointment') }}">Cancel an Appointment</a></li>
+            <li><a href="{{ url_for('update_notification_settings') }}">Profile Settings</a></li>
             <li><a href="{{ url_for('logout') }}">Logout</a></li>
         </ul>
     </nav>
