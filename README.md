@@ -15,7 +15,6 @@ ICS-370-Su24-Team6/
 ├── models.py                        # SQLAlchemy models
 │
 ├── templates/                       # HTML template files
-│   ├── base.html                    # Base template with common layout elements
 │   ├── home.html                    # Home page with options to register or log in
 │   ├── dashboard.html               # Dashboard page for logged-in users
 │   ├── book_appointment.html        # Appointment booking page
@@ -23,6 +22,7 @@ ICS-370-Su24-Team6/
 │   ├── cancel_appointment.html      # Appointment cancellation page
 │   ├── login.html                   # Login page
 │   ├── register.html                # Registration page
+│   ├── settings.html                # Settings for notifications
 │   └── calendar.html                # Calendar view displaying appointments
 │
 ├── static/                          # Static files (e.g., CSS, JavaScript)
